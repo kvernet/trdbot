@@ -69,7 +69,7 @@ class CbTrading():
         try:
             self.product_id = product_id
             self.base_currency, self.quote_currency = self.product_id.split("-")
-            self.product = self.safeGetProduct(retries=3, delay=2)
+            self.product = self.safeGetProduct()
             self.setBalance()
             self.initialized = True
             if ref_price is None:
@@ -105,22 +105,31 @@ class CbTrading():
             logging.info("An unexpected error occurred: %s", e)
     
     
-    def safeGetProduct(self, retries=3, delay=2):
+    def safeGetProduct(self, retries=5, base_delay=1, max_delay=10):
         for attempt in range(retries):
             try:
                 return self.client.get_product(self.product_id)
-            except HTTPError as e:
-                logging.info("[Retry %d] HTTP Error: %s", attempt+1, e)                
-                if attempt < retries - 1:
-                    time.sleep(delay)
-                else:
-                    raise  # Re-raise after final retry
+            
+            except (HTTPError, ConnectionError, Timeout) as e:
+                wait = min(base_delay * (2 ** attempt), max_delay)
+                jitter = random.uniform(0, wait * 0.5)
+                sleep_time = wait + jitter
+                
+                print(f"[Retry {attempt + 1}/{retries}] Error: {e}. Retrying in {sleep_time:.2f}s...")
+                time.sleep(sleep_time)
+            
+            except Exception as e:
+                print(f"[Retry {attempt + 1}/{retries}] Unexpected error: {e}")
+                time.sleep(2)
+        
+        print("[Warning] Failed to fetch product after retries. Using fallback value.")
+        return self.entry_price
     
     
     def getPrice(self):
         """Get the actual price of the product"""
         
-        product = self.safeGetProduct(retries=10, delay=5)
+        product = self.safeGetProduct()
         return float(product["price"])
     
     
@@ -170,6 +179,7 @@ class CbTrading():
                 self.info_logger.info(json.dumps(fills.to_dict(), indent=2))
                 self.setBalance()
                 self.entry_price = cur_price
+                print(f"Buy order executed at price {cur_price}.")
                 return True
             else:
                 error_response = order['error_response']
@@ -199,6 +209,7 @@ class CbTrading():
                 self.info_logger.info(json.dumps(fills.to_dict(), indent=2))                
                 self.setBalance()
                 self.entry_price = None
+                print(f"Sell order executed at price {cur_price}.")
                 return True
             else:
                 error_response = order['error_response']

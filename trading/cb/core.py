@@ -4,11 +4,13 @@ import requests
 import uuid
 import time
 import logging
+import random
+import requests
 from json import dumps
 from decimal import Decimal, ROUND_DOWN
+from requests.exceptions import HTTPError, ConnectionError, Timeout
 
 from coinbase.rest import RESTClient
-from requests.exceptions import HTTPError
 
 class CbTrading():
     """Trading on Coinbase Cex."""    

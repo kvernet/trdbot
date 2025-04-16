@@ -14,7 +14,7 @@ product_id = "BTC-USDC"
 ref_price  = None
 cb.initialize(product_id, ref_price)
 
-cb.setTradeCondition(trade_price_var=[-0.0001, 0.0003], loss_stopped=True)
+cb.setTradeCondition(trade_price_var=[-0.0001, 0.0003], trade_precision=[0.01, 0.0000001], loss_stopped=True)
 cb.setStopLoss(-0.0002)
 
 execute      = None

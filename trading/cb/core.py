@@ -29,6 +29,7 @@ class CbTrading():
         self.sell_when_price_var = 0.006
         self.api_key_loaded = False
         self.initialized = False
+        self.trade_precision = [0.01, 0.01]
         self.stop_loss = -0.02
         self.loss_stopped = False
         
@@ -86,6 +87,7 @@ class CbTrading():
         """Print the info of the trading state."""
         
         try:
+            self.setBalance()
             print("------------------------------------")
             print(f"Pair      : {self.product_id}")
             print(f"Balance   : {self.balance}")
@@ -156,10 +158,10 @@ class CbTrading():
             logging.info("An unexpected error occurred: %s", e)
     
     
-    def format_size(self, value, precision="0.01"):
+    def format_size(self, value, precision=0.01):
         """Format size"""
         
-        return Decimal(value).quantize(Decimal(precision), rounding=ROUND_DOWN)
+        return Decimal(value).quantize(Decimal(str(precision)), rounding=ROUND_DOWN)
     
     
     def buy(self, balance, cur_price):
@@ -172,16 +174,16 @@ class CbTrading():
             order = self.client.market_order_buy(
                 client_order_id=self.get_unique_order_id(),
                 product_id=self.product_id,
-                quote_size=str(self.format_size(self.balance[0]))
+                quote_size=str(self.format_size(self.balance[0], self.trade_precision[0]))
             )            
             if order['success']:
                 time.sleep(15)
                 order_id = order['success_response']['order_id']
                 fills = self.client.get_fills(order_id=order_id)
-                self.info_logger.info(json.dumps(fills.to_dict(), indent=2))
+                logging.info(json.dumps(fills.to_dict(), indent=2))
                 self.setBalance()
                 self.entry_price = cur_price
-                print(f"Buy order executed at price {cur_price}.")
+                logging.info(f"Buy order executed at price {cur_price}.")
                 return True
             else:
                 error_response = order['error_response']
@@ -202,16 +204,16 @@ class CbTrading():
             order = self.client.market_order_sell(
                 client_order_id=self.get_unique_order_id(),
                 product_id=self.product_id,
-                base_size=str(self.format_size(self.balance[1], "0.00000001"))
+                base_size=str(self.format_size(self.balance[1], self.trade_precision[1]))
             )            
             if order['success']:
                 time.sleep(15)
                 order_id = order['success_response']['order_id']
                 fills = self.client.get_fills(order_id=order_id)
-                self.info_logger.info(json.dumps(fills.to_dict(), indent=2))                
+                logging.info(json.dumps(fills.to_dict(), indent=2))                
                 self.setBalance()
                 self.entry_price = None
-                print(f"Sell order executed at price {cur_price}.")
+                logging.info(f"Sell order executed at price {cur_price}.")
                 return True
             else:
                 error_response = order['error_response']
@@ -254,13 +256,14 @@ class CbTrading():
             logging.info("An unexpected error occurred: %s", e)
     
     
-    def setTradeCondition(self, trade_price_var=[-0.003, 0.006], loss_stopped=False):
+    def setTradeCondition(self, trade_price_var=[-0.003, 0.006], trade_precision=[0.01, 0.01], loss_stopped=False):
         """Set trade price variation condition
-        Default value: trade_price_var=[-0.003, 0.006]
+        Default value: trade_price_var=[-0.003, 0.006], trade_precision=[0.01, 0.01], loss_stopped=False
         """
         
         self.buy_when_price_var  = trade_price_var[0]
         self.sell_when_price_var = trade_price_var[1]
+        self.trade_precision = trade_precision
         self.loss_stopped = loss_stopped
     
     
